@@ -21,7 +21,7 @@ module.exports = {
 			],
 			callback: async function(event) {
 				let options = event.options;
-				self.sendCommand('individual', options.socketOff, 1);
+				self.sendCommand('individual', options.socketOn, 1);
 			}
 		};
 
