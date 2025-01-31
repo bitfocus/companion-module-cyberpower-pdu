@@ -60,6 +60,27 @@ module.exports = {
 			}
 		};
 
+		//TEST - Get values
+		
+		actions.getValues = {
+			name: 'Get Values',
+			options: [],
+			callback: async function(event) {
+				self.getInfo(self.config.host, self.config.communityWrite);
+			}
+		};
+		
+	    actions.getTable = {
+			name: 'Get Table Values',
+			options: [],
+			callback: async function(event) {
+				self.getTable(self.config.host, self.config.communityWrite);
+			}
+		};
+		
+		//END TEST
+
+
 		this.setActionDefinitions(actions);
 	}
 }
