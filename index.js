@@ -52,6 +52,7 @@ class cyberpowerPDUInstance extends InstanceBase {
 		this.initFeedbacks()
 		this.initVariables()
 		this.checkVariables()
+		this.checkFeedbacks()
 		this.initPresets()
 
 		//this.getInfo(this.config.host, this.config.communityRead);

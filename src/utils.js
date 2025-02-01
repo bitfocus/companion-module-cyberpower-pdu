@@ -10,6 +10,7 @@ module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
 		let pdu_info = []
+		
 		let get_session = snmp.createSession (host, communityRead)
 		
 		// firmware, number of sockets, model, serial number
@@ -81,6 +82,7 @@ module.exports = {
 		let self = this
 		let pdu_info = []
 		let pdu_status = []
+		let nToWords = ['unknown', 'On', 'Off']
 		let get_session = snmp.createSession (host, communityRead)
 		
 		// firmware, number of sockets, model, serial number
@@ -121,16 +123,17 @@ module.exports = {
 				}
 			}
 	
-			self.DATA.s1Status = pdu_status[0]
-			self.DATA.s2Status = pdu_status[1]
-			self.DATA.s3Status = pdu_status[2]
-			self.DATA.s4Status = pdu_status[3]
-			self.DATA.s5Status = pdu_status[4]
-			self.DATA.s6Status = pdu_status[5]
-			self.DATA.s7Status = pdu_status[6]
-			self.DATA.s8Status = pdu_status[7]
+			self.DATA.s1Status = nToWords[pdu_status[0]]
+			self.DATA.s2Status = nToWords[pdu_status[1]]
+			self.DATA.s3Status = nToWords[pdu_status[2]]
+			self.DATA.s4Status = nToWords[pdu_status[3]]
+			self.DATA.s5Status = nToWords[pdu_status[4]]
+			self.DATA.s6Status = nToWords[pdu_status[5]]
+			self.DATA.s7Status = nToWords[pdu_status[6]]
+			self.DATA.s8Status = nToWords[pdu_status[7]]
 			
 			self.checkVariables()
+			self.checkFeedbacks('SocketState');
 			
 			//self.DATA.s8Status = pdu_info[4] //added
 			//self.updateFeedbacks()
