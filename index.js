@@ -31,6 +31,7 @@ class cyberpowerPDUInstance extends InstanceBase {
 			numberSockets: '',
 			model: '',
 			serialNumber: '',
+			s1Status: '',
 		};
 	}
 
@@ -50,11 +51,12 @@ class cyberpowerPDUInstance extends InstanceBase {
 		this.initActions()
 		this.initFeedbacks()
 		this.initVariables()
-		this.checkVariables();
+		this.checkVariables()
 		this.initPresets()
 
 		//this.getInfo(this.config.host, this.config.communityRead);
 	}
+	
 }
 
 runEntrypoint(cyberpowerPDUInstance, UpgradeScripts)

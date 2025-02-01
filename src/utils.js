@@ -15,19 +15,20 @@ module.exports = {
 		// firmware, number of sockets, model, serial number
 		//let oids = ['1.3.6.1.4.1.3808.1.1.3.1.3.0','1.3.6.1.4.1.3808.1.1.3.1.8.0','1.3.6.1.4.1.3808.1.1.3.1.5.0','1.3.6.1.4.1.3808.1.1.3.1.6.0'];
 		let oids = [
-		'1.3.6.1.4.1.3808.1.1.3.1.3.0', // firmware
-		'1.3.6.1.4.1.3808.1.1.3.1.8.0',
-		'1.3.6.1.4.1.3808.1.1.3.1.5.0',
-		'1.3.6.1.4.1.3808.1.1.3.1.6.0',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.1',
+		'1.3.6.1.4.1.3808.1.1.3.1.3.0', //firmware
+		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
+		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
+		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.1', //socket name
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.2',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.3',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.4',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.5',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.6',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.7',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.8'//,
-		//'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.1'  //S1 State
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.8',
+
+		
 		];
 
 		//let oids = ['1.3.6.1.4.1.3808.1.1.3.1.3.0','1.3.6.1.4.1.3808.1.1.3.1.8.0','1.3.6.1.4.1.3808.1.1.3.1.5.0','1.3.6.1.4.1.3808.1.1.3.1.6.0','1.3.6.1.4.1.3808.1.1.3.3.5.1.1'];
@@ -67,53 +68,76 @@ module.exports = {
 			self.DATA.s6Name = pdu_info[9]
 			self.DATA.s7Name = pdu_info[10]
 			self.DATA.s8Name = pdu_info[11]
-			//self.DATA.s1Status = pdu_info[12]
 			
 			
 			
 			//self.DATA.s8Status = pdu_info[4] //added
-			
 			self.checkVariables()
 			get_session.close()
 		})
 		return;
 	},
-	
-	
-	getTable: function(host, communityRead) {
-		let self = this;
-		//let pdu_info = []
+	getStatus: function(host, communityRead) {
+		let self = this
+		let pdu_info = []
+		let pdu_status = []
+		let get_session = snmp.createSession (host, communityRead)
 		
-		let table_session = snmp.createSession(host, communityRead);
+		// firmware, number of sockets, model, serial number
+
+		let oids = [
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.1',  //socket state (1) = on, (2) = off
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.2', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.3', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.4', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.5', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.6', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.7', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.8', 
 		
-	    let oid = '1.3.6.1.4.1.3808.1.1.3.3.5.1.1';
+		];
+
 		
-		self.log ('info', "Table Read Zone");
-		
-		table_session.table(oid, function(error, table) {
-			self.log ('info', "Table Loading...");
+		get_session.get (oids, function (error, varbinds) {
 			if (error) {
-				self.log('warn', 'SNMP Error:' + error);
-				//table_session.close();
+				self.log('error',error.toString())
+				self.updateStatus(InstanceStatus.Error);
 			} else {
-				//self.log('info',table);	
-				for (const [index, row] of Object.entries(table)) {
-					self.log('info', 'Row ${index}:');
-				    for (const [columnOid, value] of Object.entries(row)) {
-						self.log('info', '  ${columnOid}: ${value.value}');
-				    }
+				for (let i = 0; i < varbinds.length; i++) {
+					// for version 1 we can assume all OIDs were successful
+					self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
+					// for version 2c we must check each OID for an error condition
+					if (snmp.isVarbindError (varbinds[i]))
+						console.error (snmp.varbindError (varbinds[i]))
+					else {
+						self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
+						if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
+							pdu_status.push(ab2str(varbinds[i].value))
+						} else {
+							// self.log('info',varbinds[i].value);
+							pdu_status.push(varbinds[i].value)
+						}
+					}
 				}
-				//table_session.close();
 			}
-			//table_session.close();
-			//self.log('info', "Session Closed");
-		});
-		
-    },
-
 	
-		
-
+			self.DATA.s1Status = pdu_status[0]
+			self.DATA.s2Status = pdu_status[1]
+			self.DATA.s3Status = pdu_status[2]
+			self.DATA.s4Status = pdu_status[3]
+			self.DATA.s5Status = pdu_status[4]
+			self.DATA.s6Status = pdu_status[5]
+			self.DATA.s7Status = pdu_status[6]
+			self.DATA.s8Status = pdu_status[7]
+			
+			self.checkVariables()
+			
+			//self.DATA.s8Status = pdu_info[4] //added
+			//self.updateFeedbacks()
+			get_session.close()
+		})
+		return;
+	},
 	sendCommand: function(control, outputValue, cmdValue) {
 		let self = this;
 		// SNMP Options
@@ -164,8 +188,4 @@ module.exports = {
 			snmp_session.close()
 		});
 	}
-	
-	//responseCb(){
-		//self.log('info',"responseCb");
-	//}
 }

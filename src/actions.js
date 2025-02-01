@@ -57,6 +57,9 @@ module.exports = {
 			options: [],
 			callback: async function(event) {
 				self.sendCommand('all', null, 3);
+				self.getStatus(self.config.host, self.config.communityWrite); 
+				self.log('info', 'status checkec in allOff action');
+				self.checkVariables();
 			}
 		};
 
@@ -67,14 +70,16 @@ module.exports = {
 			options: [],
 			callback: async function(event) {
 				self.getInfo(self.config.host, self.config.communityWrite);
+				
 			}
 		};
 		
-	    actions.getTable = {
-			name: 'Get Table Values',
+	    actions.getStatus = {
+			name: 'Get Status Values',
 			options: [],
 			callback: async function(event) {
-				self.getTable(self.config.host, self.config.communityWrite);
+				self.getStatus(self.config.host, self.config.communityWrite);
+				
 			}
 		};
 		
