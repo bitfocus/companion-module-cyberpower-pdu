@@ -6,6 +6,11 @@ function ab2str(buf) {
 	return String.fromCharCode.apply(null, new Uint16Array(buf))
 }
 
+function tenthsToString(tenths) {
+	const amps = tenths / 10;
+	return amps.toFixed(1);
+    }
+
 module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
@@ -52,8 +57,10 @@ module.exports = {
 					}
 				}
 			}
-	
-			self.DATA.firmware = pdu_info[0]
+			
+			get_session.close()
+			
+			/*self.DATA.firmware = pdu_info[0]
 			self.DATA.numberSockets = pdu_info[1]
 			self.DATA.model = pdu_info[2]
 			self.DATA.serialNumber = pdu_info[3]
@@ -65,11 +72,38 @@ module.exports = {
 			self.DATA.s6Name = pdu_info[9]
 			self.DATA.s7Name = pdu_info[10]
 			self.DATA.s8Name = pdu_info[11]
+			*/
 			
-			self.getStatus(self.config.host, self.config.communityWrite); //Will this work?
+			//Update to track if any variables changed.
+			
+			const dataKeys = [
+				'firmware', 'numberSockets', 'model', 'serialNumber',
+				's1Name', 's2Name', 's3Name', 's4Name',
+				's5Name', 's6Name', 's7Name', 's8Name'
+			];
 
-			self.checkVariables()
-			get_session.close()
+			let dataChanged = false;
+
+			for (let i = 0; i < dataKeys.length; i++) {
+				const key = dataKeys[i];
+				if (self.DATA[key] !== pdu_info[i]) {
+					self.DATA[key] = pdu_info[i];
+					dataChanged = true;
+				}
+			}
+
+			if (dataChanged) {
+				//self.log('info', 'Update Core Triggered');
+				self.checkVariables() // only update core when there are changes.
+			}
+			
+			
+			
+			
+			//self.getStatus(self.config.host, self.config.communityWrite); //Will this work?
+
+			//self.checkVariables()
+			
 		})
 		return;
 	},
@@ -91,7 +125,9 @@ module.exports = {
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.6', 
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.7', 
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.8', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.8.1', // Socket 1 amps in 0.1
+		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.2.1', // Bank amps in 0.1
+		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.6.1', // Bank volts in 0.1
+		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.7.1', // Bank Watts
 		
 		];
 
@@ -118,8 +154,62 @@ module.exports = {
 					}
 				}
 			}
+			
+			get_session.close()
+			
+			// update variables and trigger update to core if required.
+			const statusKeys = [
+				's1Status', 's2Status', 's3Status', 's4Status',
+				's5Status', 's6Status', 's7Status', 's8Status'
+			];
+
+			const measurementKeys = [
+				'bankAmps', 'bankVolts'
+			]
+
+			let dataChanged = false;
+
+			for (let i = 0; i < statusKeys.length; i++) {
+				const key = statusKeys[i];
+				const newValue = nToWords[pdu_status[i]];
+
+				if (self.DATA[key] !== newValue) {
+					self.DATA[key] = newValue;
+					dataChanged = true;
+				}
+			}
+
+			for (let i = 0; i < measurementKeys.length; i++){
+				const key = measurementKeys[i];
+				const newValue = tenthsToString(pdu_status[i+8]); //pdu_status starts at 0, and we want 8 and 9
+
+				if (self.DATA[key] !== newValue) {
+					self.DATA[key] = newValue;
+					dataChanged = true;
+				}
+			}
+
+			if (self.DATA.bankWatts !== pdu_status[10]) {
+				self.DATA.bankWatts = pdu_status[10];
+				dataChanged = true;
+			}
+
+
+			if (dataChanged) {
+				self.checkVariables()
+				self.checkFeedbacks('SocketState');
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			
 	
-			self.DATA.s1Status = nToWords[pdu_status[0]]
+			/*self.DATA.s1Status = nToWords[pdu_status[0]]
 			self.DATA.s2Status = nToWords[pdu_status[1]]
 			self.DATA.s3Status = nToWords[pdu_status[2]]
 			self.DATA.s4Status = nToWords[pdu_status[3]]
@@ -127,7 +217,9 @@ module.exports = {
 			self.DATA.s6Status = nToWords[pdu_status[5]]
 			self.DATA.s7Status = nToWords[pdu_status[6]]
 			self.DATA.s8Status = nToWords[pdu_status[7]]
-			self.DATA.s1Amps = (pdu_status[8])
+			self.DATA.bankAmps = tenthsToString(pdu_status[8])
+			self.DATA.bankVolts = tenthsToString(pdu_status[9])
+			self.DATA.bankWatts = pdu_status[10])
 			
 			self.log('info','Socket 8: ' + self.DATA.s8Status);
 			self.log('info','getStatus Completed');
@@ -136,7 +228,9 @@ module.exports = {
 			self.log('info','checkVariables Completed');
 			self.log('info','Socket 8: ' + self.DATA.s8Status);
 			self.checkFeedbacks('SocketState');
-			get_session.close()
+			
+			*/
+		
 		})
 		return;
 	},

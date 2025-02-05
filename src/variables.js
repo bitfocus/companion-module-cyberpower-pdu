@@ -26,7 +26,9 @@ module.exports = {
 		variables.push({ variableId: 'Socket_6_Status', name: 'Socket 6 Status' });
 		variables.push({ variableId: 'Socket_7_Status', name: 'Socket 7 Status' });
 		variables.push({ variableId: 'Socket_8_Status', name: 'Socket 8 Status' });
-		variables.push({ variableId: 'Socket_1_Amps', name: 'Socket 1 Amps' });
+		variables.push({ variableId: 'Bank_Amps', name: 'Bank Amps' });
+		variables.push({ variableId: 'Bank_Volts', name: 'Bank Volts' });
+		variables.push({ variableId: 'Bank_Watts', name: 'Bank Watts' });
 
 		self.setVariableDefinitions(variables)
 		 
@@ -49,6 +51,28 @@ module.exports = {
 			//self.log('error', 'Error setting interval: ' + String(error));
 		}
 		*/
+		
+		//Check info (names, model, etc) once every 5 seconds
+		try {
+			setInterval(function() {
+				self.getInfo(self.config.host, self.config.communityWrite);
+				self.log('info', 'Name Check');
+			},5000);
+		}
+		catch(error) {
+			self.log('error', 'Error setting interval');
+		}
+		try {
+			setInterval(function() {
+				self.getStatus(self.config.host, self.config.communityWrite);
+				self.log('info', 'Status Check');
+			},1000);
+		}
+		catch(error) {
+			self.log('error', 'Error setting interval');
+		}
+		
+		
 		self.getStatus(self.config.host, self.config.communityWrite); // update socket values on start.
 		self.getInfo(self.config.host, self.config.communityWrite); // update info on intial start.
 	},
@@ -82,7 +106,9 @@ module.exports = {
 			variableObj['Socket_6_Status'] = self.DATA.s6Status;
 			variableObj['Socket_7_Status'] = self.DATA.s7Status;
 			variableObj['Socket_8_Status'] = self.DATA.s8Status;
-			variableObj['Socket_1_Amps'] = self.DATA.s1Amps;
+			variableObj['Bank_Amps'] = self.DATA.bankAmps;
+			variableObj['Bank_Volts'] = self.DATA.bankVolts;
+			variableObj['Bank_Watts'] = self.DATA.bankWatts;
 
 			self.setVariableValues(variableObj);
 			
