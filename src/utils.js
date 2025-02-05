@@ -14,25 +14,21 @@ module.exports = {
 		let get_session = snmp.createSession (host, communityRead)
 		
 		// firmware, number of sockets, model, serial number
-		//let oids = ['1.3.6.1.4.1.3808.1.1.3.1.3.0','1.3.6.1.4.1.3808.1.1.3.1.8.0','1.3.6.1.4.1.3808.1.1.3.1.5.0','1.3.6.1.4.1.3808.1.1.3.1.6.0'];
 		let oids = [
 		'1.3.6.1.4.1.3808.1.1.3.1.3.0', //firmware
 		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
 		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
 		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.1', //socket name
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.2',
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.1', //socket 1 name
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.2', //socket 2 name
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.3',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.4',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.5',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.6',
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.7',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.8',
-
-		
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.8', //socket 8 name	
 		];
 
-		//let oids = ['1.3.6.1.4.1.3808.1.1.3.1.3.0','1.3.6.1.4.1.3808.1.1.3.1.8.0','1.3.6.1.4.1.3808.1.1.3.1.5.0','1.3.6.1.4.1.3808.1.1.3.1.6.0','1.3.6.1.4.1.3808.1.1.3.3.5.1.1'];
 		
 		get_session.get (oids, function (error, varbinds) {
 			if (error) {
@@ -70,9 +66,8 @@ module.exports = {
 			self.DATA.s7Name = pdu_info[10]
 			self.DATA.s8Name = pdu_info[11]
 			
-			
-			
-			//self.DATA.s8Status = pdu_info[4] //added
+			self.getStatus(self.config.host, self.config.communityWrite); //Will this work?
+
 			self.checkVariables()
 			get_session.close()
 		})
@@ -96,6 +91,7 @@ module.exports = {
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.6', 
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.7', 
 		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.8', 
+		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.8.1', // Socket 1 amps in 0.1
 		
 		];
 
@@ -107,12 +103,12 @@ module.exports = {
 			} else {
 				for (let i = 0; i < varbinds.length; i++) {
 					// for version 1 we can assume all OIDs were successful
-					self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
+					//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
 					// for version 2c we must check each OID for an error condition
 					if (snmp.isVarbindError (varbinds[i]))
 						console.error (snmp.varbindError (varbinds[i]))
 					else {
-						self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
+						//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
 						if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
 							pdu_status.push(ab2str(varbinds[i].value))
 						} else {
@@ -131,12 +127,15 @@ module.exports = {
 			self.DATA.s6Status = nToWords[pdu_status[5]]
 			self.DATA.s7Status = nToWords[pdu_status[6]]
 			self.DATA.s8Status = nToWords[pdu_status[7]]
+			self.DATA.s1Amps = (pdu_status[8])
 			
+			self.log('info','Socket 8: ' + self.DATA.s8Status);
+			self.log('info','getStatus Completed');
+			self.log('info','Socket 8: ' + self.DATA.s8Status);
 			self.checkVariables()
+			self.log('info','checkVariables Completed');
+			self.log('info','Socket 8: ' + self.DATA.s8Status);
 			self.checkFeedbacks('SocketState');
-			
-			//self.DATA.s8Status = pdu_info[4] //added
-			//self.updateFeedbacks()
 			get_session.close()
 		})
 		return;
@@ -181,14 +180,32 @@ module.exports = {
 			} else {
 				for (let i = 0; i < varbinds.length; i++) {
 					// for version 1 we can assume all OIDs were successful
-					self.log('info', varbinds[i].oid + '|' + varbinds[i].value)
+					//self.log('info', varbinds[i].oid + '|' + varbinds[i].value)
 
 					// for version 2c we must check each OID for an error condition
 					if (snmp.isVarbindError(varbinds[i])) self.log('error', snmp.varbindError(varbinds[i]))
-					else self.log('info', varbinds[i].oid + '|' + varbinds[i].value)
+					//else self.log('info', varbinds[i].oid + '|' + varbinds[i].value)
 				}
 			}
+						
+			//self.checkVariables() // submit updates
+			//self.checkFeedbacks('SocketState');  //submit updates
 			snmp_session.close()
 		});
+		
+		//Check 1/2 second and 1.5 seconds after command to verify status update.
+		
+		setTimeout(function() {
+			//self.log('info','Start Checks');
+			self.getStatus(self.config.host, self.config.communityWrite); //check status
+			//self.log('info','Checks Complete');
+		}, 500);		
+		
+		setTimeout(function() {
+			//self.log('info','Start Checks');
+			self.getStatus(self.config.host, self.config.communityWrite); //check status
+			//self.log('info','Checks Complete');
+		}, 1500);
+		
 	}
 }

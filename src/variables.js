@@ -26,23 +26,30 @@ module.exports = {
 		variables.push({ variableId: 'Socket_6_Status', name: 'Socket 6 Status' });
 		variables.push({ variableId: 'Socket_7_Status', name: 'Socket 7 Status' });
 		variables.push({ variableId: 'Socket_8_Status', name: 'Socket 8 Status' });
+		variables.push({ variableId: 'Socket_1_Amps', name: 'Socket 1 Amps' });
 
 		self.setVariableDefinitions(variables)
+		 
+		//removed inerval updates and only updates on action change.  
+		//TODO: Update based on external updates? AKA: check regularly but only update core on changes.
+		/*
 		
 		try {
 			setInterval(function() {
 				self.getStatus(self.config.host, self.config.communityWrite); 
 				self.checkVariables();
 			},1000); //update every second;
-			self.log('info', 'interval set!');
+			//self.log('info', 'interval set!');
 			self.getStatus(self.config.host, self.config.communityWrite); 
-			self.log('info', 'initial status checked');
+			//self.log('info', 'initial status checked');
 			self.checkVariables();
-			self.log('info', 'variables checked.');
+			//self.log('info', 'variables checked.');
 		}
 		catch(error) {
-			self.log('error', 'Error setting interval: ' + String(error));
+			//self.log('error', 'Error setting interval: ' + String(error));
 		}
+		*/
+		self.getStatus(self.config.host, self.config.communityWrite); // update socket values on start.
 		self.getInfo(self.config.host, self.config.communityWrite); // update info on intial start.
 	},
 
@@ -74,12 +81,12 @@ module.exports = {
 			variableObj['Socket_5_Status'] = self.DATA.s5Status;
 			variableObj['Socket_6_Status'] = self.DATA.s6Status;
 			variableObj['Socket_7_Status'] = self.DATA.s7Status;
-			variableObj['Socket_8_Status'] = self.DATA.s8Status;		
-			//variableObj['Status8'] = self.DATA.s8Status;
+			variableObj['Socket_8_Status'] = self.DATA.s8Status;
+			variableObj['Socket_1_Amps'] = self.DATA.s1Amps;
 
 			self.setVariableValues(variableObj);
 			
-			self.log('info', 'status checked');
+			self.log('info', 'Variable Objects Updated');
 		}
 		catch(error) {
 			self.log('error', 'Error setting Variables from Device: ' + String(error));

@@ -4,7 +4,6 @@ module.exports = {
 	// ##########################
 	// #### Define Feedbacks ####
 	// ##########################
-	//s1Status: null,
 	
 	initFeedbacks: function () {
 		let self = this;
@@ -14,7 +13,7 @@ module.exports = {
 				type: 'boolean',
 				label: 'Socket State',
 				defaultStyle: {
-					bgcolor: combineRgb(255, 0, 0),
+					bgcolor: combineRgb(0, 255, 0),
 					color: combineRgb(0, 0, 0),
 				},
 				options: [
@@ -40,8 +39,6 @@ module.exports = {
 					},
 				],
 				callback: (feedback) => {
-					//self.log('info', 'Number:' + feedback.options.socketNum)
-					//self.log('info', 'Status:' + self.s1Status)
 					let socketNum = feedback.options.socketNum;
 					let targetState = feedback.options.state;
 					let currentStatus;
@@ -59,24 +56,12 @@ module.exports = {
                             self.log('warn', 'Invalid socket number: ' + socketNum);
                             return false; // Or handle the error as needed
                     }
-					
-					
-					let statusMatches = (currentStatus === 'On' && targetState === 'on') || (currentStatus === 'Off' && targetState === 'off');
-					
-					//let statusMatches = (self.DATA.s1Status === 'On' && targetState === 'on') || (self.DATA.s1Status === 'Off' && targetState === 'off');
-					
+					let statusMatches = (currentStatus === 'On' && targetState === 'on') || (currentStatus === 'Off' && targetState === 'off');					
 					return statusMatches;
-					//if (self.s1Status === '1' ) {
-				//		return true
-				//	} else {
-				//		return false
-				//	}
 				},
 			},			
 		};
 
-
 		this.setFeedbackDefinitions(feedbacks);
 	}
-	
 }
