@@ -44,9 +44,25 @@ module.exports = {
 			callback: async function(event) {
 				let options = event.options;
 				self.sendCommand('individual', options.socketOff, 2);
-				// getStatus & update variables
-				//self.getStatus(self.config.host, self.config.communityWrite); 
-				//self.checkVariables();
+			}
+		};
+		
+		actions.toggleSocket = {
+			name: 'Toggle Output Socket',
+			options: [
+				{
+					type: 'number',
+					label: 'Socket',
+					id: 'socketToggle',
+					min: 1,
+					max: 24,
+					default: 1,
+					required: true,
+				},
+			],
+			callback: async function(event) {
+				let options = event.options;
+				self.sendCommand('toggle', options.socketToggle, 5); //5 is dummy
 			}
 		};
 
@@ -55,9 +71,6 @@ module.exports = {
 			options: [],
 			callback: async function(event) {
 				self.sendCommand('all', null, 2);
-				// getStatus & update variables
-				//self.getStatus(self.config.host, self.config.communityWrite); 
-				//self.checkVariables();
 			}
 		};
 
@@ -66,13 +79,10 @@ module.exports = {
 			options: [],
 			callback: async function(event) {
 				self.sendCommand('all', null, 3);
-				//self.getStatus(self.config.host, self.config.communityWrite); 
-				//self.log('info', 'status checked in allOff action');
-				//self.checkVariables();
 			}
 		};
 
-		//TEST - Get values
+		//TEST - Get values "manually"
 		/*
 		actions.getValues = {
 			name: 'Get Values',
@@ -94,12 +104,6 @@ module.exports = {
 		
 		//END TEST
         */
-		
-		/////////////
-		// TO DO ////
-		/////////////
-		
-		// ADD Toggle Option
 
 		this.setActionDefinitions(actions);
 	}

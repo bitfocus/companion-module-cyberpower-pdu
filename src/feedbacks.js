@@ -12,10 +12,7 @@ module.exports = {
 				name: 'Socket State',
 				type: 'boolean',
 				label: 'Socket State',
-				defaultStyle: {
-					bgcolor: combineRgb(0, 255, 0),
-					color: combineRgb(0, 0, 0),
-				},
+				description: 'If the socket state has changed, change the style of the button',
 				options: [
 					{
 						id: 'socketNum',
@@ -38,6 +35,10 @@ module.exports = {
 						description: 'State to trigger feedback',
 					},
 				],
+				defaultStyle: {
+					bgcolor: combineRgb(0, 255, 0),
+					color: combineRgb(0, 0, 0)
+				},
 				callback: (feedback) => {
 					let socketNum = feedback.options.socketNum;
 					let targetState = feedback.options.state;

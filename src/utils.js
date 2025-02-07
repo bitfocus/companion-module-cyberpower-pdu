@@ -42,12 +42,12 @@ module.exports = {
 			} else {
 				for (let i = 0; i < varbinds.length; i++) {
 					// for version 1 we can assume all OIDs were successful
-					self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
+					//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
 					// for version 2c we must check each OID for an error condition
 					if (snmp.isVarbindError (varbinds[i]))
 						console.error (snmp.varbindError (varbinds[i]))
 					else {
-						self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
+						//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
 						if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
 							pdu_info.push(ab2str(varbinds[i].value))
 						} else {
@@ -59,22 +59,6 @@ module.exports = {
 			}
 			
 			get_session.close()
-			
-			/*self.DATA.firmware = pdu_info[0]
-			self.DATA.numberSockets = pdu_info[1]
-			self.DATA.model = pdu_info[2]
-			self.DATA.serialNumber = pdu_info[3]
-			self.DATA.s1Name = pdu_info[4]
-			self.DATA.s2Name = pdu_info[5]
-			self.DATA.s3Name = pdu_info[6]
-			self.DATA.s4Name = pdu_info[7]
-			self.DATA.s5Name = pdu_info[8]
-			self.DATA.s6Name = pdu_info[9]
-			self.DATA.s7Name = pdu_info[10]
-			self.DATA.s8Name = pdu_info[11]
-			*/
-			
-			//Update to track if any variables changed.
 			
 			const dataKeys = [
 				'firmware', 'numberSockets', 'model', 'serialNumber',
@@ -96,14 +80,6 @@ module.exports = {
 				//self.log('info', 'Update Core Triggered');
 				self.checkVariables() // only update core when there are changes.
 			}
-			
-			
-			
-			
-			//self.getStatus(self.config.host, self.config.communityWrite); //Will this work?
-
-			//self.checkVariables()
-			
 		})
 		return;
 	},
@@ -112,6 +88,7 @@ module.exports = {
 		let pdu_info = []
 		let pdu_status = []
 		let nToWords = ['unknown', 'On', 'Off']
+		
 		let get_session = snmp.createSession (host, communityRead)
 		
 		// firmware, number of sockets, model, serial number
@@ -199,42 +176,12 @@ module.exports = {
 				self.checkVariables()
 				self.checkFeedbacks('SocketState');
 			}
-			
-			
-			
-			
-			
-			
-			
-			
-			
-	
-			/*self.DATA.s1Status = nToWords[pdu_status[0]]
-			self.DATA.s2Status = nToWords[pdu_status[1]]
-			self.DATA.s3Status = nToWords[pdu_status[2]]
-			self.DATA.s4Status = nToWords[pdu_status[3]]
-			self.DATA.s5Status = nToWords[pdu_status[4]]
-			self.DATA.s6Status = nToWords[pdu_status[5]]
-			self.DATA.s7Status = nToWords[pdu_status[6]]
-			self.DATA.s8Status = nToWords[pdu_status[7]]
-			self.DATA.bankAmps = tenthsToString(pdu_status[8])
-			self.DATA.bankVolts = tenthsToString(pdu_status[9])
-			self.DATA.bankWatts = pdu_status[10])
-			
-			self.log('info','Socket 8: ' + self.DATA.s8Status);
-			self.log('info','getStatus Completed');
-			self.log('info','Socket 8: ' + self.DATA.s8Status);
-			self.checkVariables()
-			self.log('info','checkVariables Completed');
-			self.log('info','Socket 8: ' + self.DATA.s8Status);
-			self.checkFeedbacks('SocketState');
-			
-			*/
-		
+				
 		})
 		return;
 	},
 	sendCommand: function(control, outputValue, cmdValue) {
+		let wordToN = ['unknown', 'Off', 'On'] //Note reversed values as this is used to toggle only
 		let self = this;
 		// SNMP Options
 		let snmp_options = {
@@ -264,6 +211,25 @@ module.exports = {
 					value: cmdValue,
 				}
 			]
+		}
+		if (control == 'toggle') {
+			
+			const statusKeys = [  //probably a better way than copying above here
+				's1Status', 's2Status', 's3Status', 's4Status',
+				's5Status', 's6Status', 's7Status', 's8Status'
+			];
+			
+			setValue = wordToN.indexOf(self.DATA[statusKeys[outputValue-1]]);
+			
+			varbinds = [
+				{
+					oid: '1.3.6.1.4.1.3808.1.1.3.3.3.1.1.4.' + (outputValue),
+					type: snmp.ObjectType.Integer,
+					value: setValue,
+				}
+			]
+			
+			
 		}
 
 		// Create new session and send set command

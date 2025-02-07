@@ -32,26 +32,6 @@ module.exports = {
 
 		self.setVariableDefinitions(variables)
 		 
-		//removed inerval updates and only updates on action change.  
-		//TODO: Update based on external updates? AKA: check regularly but only update core on changes.
-		/*
-		
-		try {
-			setInterval(function() {
-				self.getStatus(self.config.host, self.config.communityWrite); 
-				self.checkVariables();
-			},1000); //update every second;
-			//self.log('info', 'interval set!');
-			self.getStatus(self.config.host, self.config.communityWrite); 
-			//self.log('info', 'initial status checked');
-			self.checkVariables();
-			//self.log('info', 'variables checked.');
-		}
-		catch(error) {
-			//self.log('error', 'Error setting interval: ' + String(error));
-		}
-		*/
-		
 		//Check info (names, model, etc) once every 5 seconds
 		try {
 			setInterval(function() {
@@ -62,6 +42,7 @@ module.exports = {
 		catch(error) {
 			self.log('error', 'Error setting interval');
 		}
+		//Check status (bank values, socket status) once every second
 		try {
 			setInterval(function() {
 				self.getStatus(self.config.host, self.config.communityWrite);

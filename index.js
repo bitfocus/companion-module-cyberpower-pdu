@@ -47,7 +47,6 @@ class cyberpowerPDUInstance extends InstanceBase {
 		this.updateStatus(InstanceStatus.Ok)
 		
 		this.config = config
-		
 		this.initActions()
 		this.initFeedbacks()
 		this.initVariables()
