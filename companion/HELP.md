@@ -7,5 +7,5 @@ This module supports Cyberpower PDUs and will enable you to switch the output so
 ## Version 1.0.0
 First Release
 
-## Version 2.0.0
+## Version 1.1.0
 Added Feedback, Status, and Toggle
