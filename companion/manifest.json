@@ -3,14 +3,11 @@
 	"name": "cyberpower-pdu",
 	"shortname": "CyberPower PDU",
 	"description": "Companion module for CyberPower PDU",
-	"version": "1.1.0",
+	"version": "0.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-cyberpower-pdu.git",
 	"bugs": "https://github.com/bitfocus/companion-module-cyberpower-pdu/issues",
 	"maintainers": [
-		{
-			"name": "Cameron Munro, Peter Daniel, Jonathan Keinath"
-		},
 		{
 			"name": "Joseph Adams",
 			"email": "josephdadams@gmail.com"
