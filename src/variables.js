@@ -30,32 +30,58 @@ module.exports = {
 		variables.push({ variableId: 'Bank_Volts', name: 'Bank Volts' });
 		variables.push({ variableId: 'Bank_Watts', name: 'Bank Watts' });
 
+
+		// ATS variables (only meaningful when deviceType === 'ats')
+		variables.push({ variableId: 'ATS_Model', name: 'ATS Model' });
+		variables.push({ variableId: 'ATS_SerialNumber', name: 'ATS Serial Number' });
+		variables.push({ variableId: 'ATS_Firmware', name: 'ATS Firmware Version' });
+		variables.push({ variableId: 'ATS_Device_Rating_Current', name: 'ATS Device Rating Current (A)' });
+		variables.push({ variableId: 'ATS_Active_Source', name: 'ATS Active Source' });
+		variables.push({ variableId: 'ATS_SourceA_Volts', name: 'ATS Source A Volts (V)' });
+		variables.push({ variableId: 'ATS_SourceB_Volts', name: 'ATS Source B Volts (V)' });
+		variables.push({ variableId: 'ATS_SourceA_Freq', name: 'ATS Source A Frequency (Hz)' });
+		variables.push({ variableId: 'ATS_SourceB_Freq', name: 'ATS Source B Frequency (Hz)' });
+		// ATS outlet names & statuses (placeholders, confirm actual count)
+		for (let i = 1; i <= 8; i++) {
+			variables.push({ variableId: `ATS_Outlet_${i}_Name`, name: `ATS Outlet ${i} Name` });
+			variables.push({ variableId: `ATS_Outlet_${i}_Status`, name: `ATS Outlet ${i} Status` });
+		}
+
 		self.setVariableDefinitions(variables)
 		 
 		//Check info (names, model, etc) once every 5 seconds
 		try {
 			setInterval(function() {
-				self.getInfo(self.config.host, self.config.communityWrite);
-				self.log('info', 'Name Check');
+				if (self.config.deviceType === 'ats') {
+					self.getATSInfo(self.config.host, self.config.communityRead)
+				} else {
+					self.getInfo(self.config.host, self.config.communityWrite);
+				}
 			},5000);
 		}
 		catch(error) {
-			self.log('error', 'Error setting interval');
+			self.log('error', 'Error setting info interval');
 		}
-		//Check status (bank values, socket status) once every second
 		try {
 			setInterval(function() {
-				self.getStatus(self.config.host, self.config.communityWrite);
-				self.log('info', 'Status Check');
+				if (self.config.deviceType === 'ats') {
+					self.getATSStatus(self.config.host, self.config.communityRead)
+				} else {
+					self.getStatus(self.config.host, self.config.communityWrite);
+				}
 			},1000);
 		}
 		catch(error) {
-			self.log('error', 'Error setting interval');
+			self.log('error', 'Error setting status interval');
 		}
-		
-		
-		self.getStatus(self.config.host, self.config.communityWrite); // update socket values on start.
-		self.getInfo(self.config.host, self.config.communityWrite); // update info on intial start.
+
+		if (self.config.deviceType === 'ats') {
+			self.getATSStatus(self.config.host, self.config.communityRead)
+			self.getATSInfo(self.config.host, self.config.communityRead)
+		} else {
+			self.getStatus(self.config.host, self.config.communityWrite); 
+			self.getInfo(self.config.host, self.config.communityWrite); 
+		}
 	},
 
 	// #########################
@@ -90,6 +116,20 @@ module.exports = {
 			variableObj['Bank_Amps'] = self.DATA.bankAmps;
 			variableObj['Bank_Volts'] = self.DATA.bankVolts;
 			variableObj['Bank_Watts'] = self.DATA.bankWatts;
+			// ATS mappings
+			variableObj['ATS_Model'] = self.DATA.atsModel;
+			variableObj['ATS_SerialNumber'] = self.DATA.atsSerialNumber;
+			variableObj['ATS_Firmware'] = self.DATA.atsFirmware;
+			variableObj['ATS_Device_Rating_Current'] = self.DATA.atsDeviceRatingCurrent;
+			variableObj['ATS_Active_Source'] = self.DATA.atsActiveSource;
+			variableObj['ATS_SourceA_Volts'] = self.DATA.atsSourceAVolts;
+			variableObj['ATS_SourceB_Volts'] = self.DATA.atsSourceBVolts;
+			variableObj['ATS_SourceA_Freq'] = self.DATA.atsSourceAFreq;
+			variableObj['ATS_SourceB_Freq'] = self.DATA.atsSourceBFreq;
+			for (let i = 1; i <= 8; i++) {
+				variableObj[`ATS_Outlet_${i}_Name`] = self.DATA[`atsOutlet${i}Name`];
+				variableObj[`ATS_Outlet_${i}_Status`] = self.DATA[`atsOutlet${i}Status`];
+			}
 
 			self.setVariableValues(variableObj);
 			

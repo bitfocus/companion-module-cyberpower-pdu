@@ -10,6 +10,8 @@ const presets = require('./src/presets')
 
 const constants = require('./src/constants')
 const utils = require('./src/utils')
+const pdu = require('./src/pdu')
+const ats = require('./src/ats')
 
 class cyberpowerPDUInstance extends InstanceBase {
 	constructor(internal) {
@@ -23,7 +25,9 @@ class cyberpowerPDUInstance extends InstanceBase {
 			...variables,
 			...presets,
 			...constants,
-			...utils
+			...utils,
+			...pdu,
+			...ats
 		})
 
 		this.DATA = {

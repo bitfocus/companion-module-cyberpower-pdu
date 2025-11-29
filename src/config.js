@@ -4,6 +4,17 @@ module.exports = {
 	getConfigFields() {
 		return [
 			{
+				type: 'dropdown',
+				id: 'deviceType',
+				label: 'Device Type',
+				width: 6,
+				choices: [
+					{ id: 'pdu', label: 'PDU' },
+					{ id: 'ats', label: 'ATS' }
+				],
+				default: 'pdu'
+			},
+			{
 				type: 'static-text',
 				id: 'info',
 				width: 12,

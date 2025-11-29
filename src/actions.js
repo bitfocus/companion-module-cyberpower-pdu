@@ -21,10 +21,11 @@ module.exports = {
 			],
 			callback: async function(event) {
 				let options = event.options;
-				self.sendCommand('individual', options.socketOn, 1);
-				// getStatus & update variables
-				//self.getStatus(self.config.host, self.config.communityWrite); 
-				//self.checkVariables();
+				if (self.config.deviceType === 'ats') {
+					self.sendATSOutletCommand('individual', options.socketOn, 1)
+				} else {
+					self.sendCommand('individual', options.socketOn, 1);
+				}
 			}
 		};
 
@@ -43,7 +44,11 @@ module.exports = {
 			],
 			callback: async function(event) {
 				let options = event.options;
-				self.sendCommand('individual', options.socketOff, 2);
+				if (self.config.deviceType === 'ats') {
+					self.sendATSOutletCommand('individual', options.socketOff, 2)
+				} else {
+					self.sendCommand('individual', options.socketOff, 2);
+				}
 			}
 		};
 		
@@ -62,7 +67,15 @@ module.exports = {
 			],
 			callback: async function(event) {
 				let options = event.options;
-				self.sendCommand('toggle', options.socketToggle, 5); //5 is dummy
+				if (self.config.deviceType === 'ats') {
+					// toggle: read current state and invert (placeholder method)
+					const statusKey = `atsOutlet${options.socketToggle}Status`
+					const current = self.DATA[statusKey]
+					const nextVal = current === 'On' ? 2 : 1
+					self.sendATSOutletCommand('individual', options.socketToggle, nextVal)
+				} else {
+					self.sendCommand('toggle', options.socketToggle, 5); //5 is dummy
+				}
 			}
 		};
 
@@ -70,7 +83,11 @@ module.exports = {
 			name: 'Set All Sockets On',
 			options: [],
 			callback: async function(event) {
-				self.sendCommand('all', null, 2);
+				if (self.config.deviceType === 'ats') {
+					self.sendATSOutletCommand('all', null, 1)
+				} else {
+					self.sendCommand('all', null, 2);
+				}
 			}
 		};
 
@@ -78,9 +95,29 @@ module.exports = {
 			name: 'Set All Sockets Off',
 			options: [],
 			callback: async function(event) {
-				self.sendCommand('all', null, 3);
+				if (self.config.deviceType === 'ats') {
+					self.sendATSOutletCommand('all', null, 2)
+				} else {
+					self.sendCommand('all', null, 3);
+				}
 			}
 		};
+
+		// ATS actions (only active when deviceType === 'ats')
+		actions.transferToSourceA = {
+			name: 'ATS: Transfer to Source A',
+			options: [],
+			callback: async function() {
+				if (self.config.deviceType === 'ats') self.sendATSCommand('sourceA')
+			}
+		}
+		actions.transferToSourceB = {
+			name: 'ATS: Transfer to Source B',
+			options: [],
+			callback: async function() {
+				if (self.config.deviceType === 'ats') self.sendATSCommand('sourceB')
+			}
+		}
 
 		//TEST - Get values "manually"
 		/*
