@@ -15,6 +15,7 @@ module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
 		let pdu_info = []
+		const maxSockets = 18;
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
@@ -24,15 +25,10 @@ module.exports = {
 		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
 		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
 		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.1', //socket 1 name
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.2', //socket 2 name
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.3',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.4',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.5',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.6',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.7',
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.8', //socket 8 name	
 		];
+		for (let i = 1; i <= maxSockets; i++) {
+			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`); // socket name
+		}
 
 		
 		get_session.get (oids, function (error, varbinds) {
@@ -44,9 +40,10 @@ module.exports = {
 					// for version 1 we can assume all OIDs were successful
 					//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
 					// for version 2c we must check each OID for an error condition
-					if (snmp.isVarbindError (varbinds[i]))
+					if (snmp.isVarbindError (varbinds[i])) {
 						console.error (snmp.varbindError (varbinds[i]))
-					else {
+						pdu_info.push('')
+					} else {
 						//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
 						if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
 							pdu_info.push(ab2str(varbinds[i].value))
@@ -61,10 +58,11 @@ module.exports = {
 			get_session.close()
 			
 			const dataKeys = [
-				'firmware', 'numberSockets', 'model', 'serialNumber',
-				's1Name', 's2Name', 's3Name', 's4Name',
-				's5Name', 's6Name', 's7Name', 's8Name'
+				'firmware', 'numberSockets', 'model', 'serialNumber'
 			];
+			for (let i = 1; i <= maxSockets; i++) {
+				dataKeys.push(`s${i}Name`);
+			}
 
 			let dataChanged = false;
 
@@ -88,25 +86,21 @@ module.exports = {
 		let pdu_info = []
 		let pdu_status = []
 		let nToWords = ['unknown', 'On', 'Off']
+		const maxSockets = 18;
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
 		// firmware, number of sockets, model, serial number
 
-		let oids = [
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.1',  //socket state (1) = on, (2) = off
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.2', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.3', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.4', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.5', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.6', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.7', 
-		'1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.8', 
-		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.2.1', // Bank amps in 0.1
-		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.6.1', // Bank volts in 0.1
-		'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.7.1', // Bank Watts
-		
-		];
+		let oids = [];
+		for (let i = 1; i <= maxSockets; i++) {
+			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.${i}`); // socket state (1) = on, (2) = off
+		}
+		oids.push(
+			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.2.1', // Bank amps in 0.1
+			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.6.1', // Bank volts in 0.1
+			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.7.1', // Bank Watts
+		);
 
 		
 		get_session.get (oids, function (error, varbinds) {
@@ -118,9 +112,10 @@ module.exports = {
 					// for version 1 we can assume all OIDs were successful
 					//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
 					// for version 2c we must check each OID for an error condition
-					if (snmp.isVarbindError (varbinds[i]))
+					if (snmp.isVarbindError (varbinds[i])) {
 						console.error (snmp.varbindError (varbinds[i]))
-					else {
+						pdu_status.push(null)
+					} else {
 						//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
 						if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
 							pdu_status.push(ab2str(varbinds[i].value))
@@ -135,10 +130,10 @@ module.exports = {
 			get_session.close()
 			
 			// update variables and trigger update to core if required.
-			const statusKeys = [
-				's1Status', 's2Status', 's3Status', 's4Status',
-				's5Status', 's6Status', 's7Status', 's8Status'
-			];
+			const statusKeys = [];
+			for (let i = 1; i <= maxSockets; i++) {
+				statusKeys.push(`s${i}Status`);
+			}
 
 			const measurementKeys = [
 				'bankAmps', 'bankVolts'
@@ -148,7 +143,7 @@ module.exports = {
 
 			for (let i = 0; i < statusKeys.length; i++) {
 				const key = statusKeys[i];
-				const newValue = nToWords[pdu_status[i]];
+				const newValue = nToWords[pdu_status[i]] || 'unknown';
 
 				if (self.DATA[key] !== newValue) {
 					self.DATA[key] = newValue;
@@ -158,7 +153,8 @@ module.exports = {
 
 			for (let i = 0; i < measurementKeys.length; i++){
 				const key = measurementKeys[i];
-				const newValue = tenthsToString(pdu_status[i+8]); //pdu_status starts at 0, and we want 8 and 9
+				const rawValue = pdu_status[i + maxSockets];
+				const newValue = rawValue == null ? '' : tenthsToString(rawValue); //pdu_status starts at 0
 
 				if (self.DATA[key] !== newValue) {
 					self.DATA[key] = newValue;
@@ -166,8 +162,8 @@ module.exports = {
 				}
 			}
 
-			if (self.DATA.bankWatts !== pdu_status[10]) {
-				self.DATA.bankWatts = pdu_status[10];
+			if (self.DATA.bankWatts !== pdu_status[maxSockets + 2]) {
+				self.DATA.bankWatts = pdu_status[maxSockets + 2];
 				dataChanged = true;
 			}
 
@@ -183,6 +179,7 @@ module.exports = {
 	sendCommand: function(control, outputValue, cmdValue) {
 		let wordToN = ['unknown', 'Off', 'On'] //Note reversed values as this is used to toggle only
 		let self = this;
+		const maxSockets = 18;
 		// SNMP Options
 		let snmp_options = {
 			port: self.config.port,
@@ -214,10 +211,10 @@ module.exports = {
 		}
 		if (control == 'toggle') {
 			
-			const statusKeys = [  //probably a better way than copying above here
-				's1Status', 's2Status', 's3Status', 's4Status',
-				's5Status', 's6Status', 's7Status', 's8Status'
-			];
+			const statusKeys = [];
+			for (let i = 1; i <= maxSockets; i++) {
+				statusKeys.push(`s${i}Status`);
+			}
 			
 			setValue = wordToN.indexOf(self.DATA[statusKeys[outputValue-1]]);
 			

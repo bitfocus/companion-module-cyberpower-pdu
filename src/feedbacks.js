@@ -7,6 +7,7 @@ module.exports = {
 	
 	initFeedbacks: function () {
 		let self = this;
+		const maxSockets = 18;
 		let feedbacks = {
 			SocketState: {
 				name: 'Socket State',
@@ -20,7 +21,7 @@ module.exports = {
 						label: 'Socket Number',
 						default: 1,
 						min: 1,
-						max: 8,
+						max: maxSockets,
 						description: 'Socket to monitor',
 					},
 					{
@@ -42,21 +43,11 @@ module.exports = {
 				callback: (feedback) => {
 					let socketNum = feedback.options.socketNum;
 					let targetState = feedback.options.state;
-					let currentStatus;
-					
-					switch (socketNum) {
-                        case 1: currentStatus = self.DATA.s1Status; break;
-                        case 2: currentStatus = self.DATA.s2Status; break;
-                        case 3: currentStatus = self.DATA.s3Status; break;
-                        case 4: currentStatus = self.DATA.s4Status; break;
-                        case 5: currentStatus = self.DATA.s5Status; break;
-                        case 6: currentStatus = self.DATA.s6Status; break;
-                        case 7: currentStatus = self.DATA.s7Status; break;
-                        case 8: currentStatus = self.DATA.s8Status; break;
-                        default:
-                            self.log('warn', 'Invalid socket number: ' + socketNum);
-                            return false; // Or handle the error as needed
-                    }
+					if (socketNum < 1 || socketNum > maxSockets) {
+						self.log('warn', 'Invalid socket number: ' + socketNum);
+						return false;
+					}
+					let currentStatus = self.DATA[`s${socketNum}Status`];
 					let statusMatches = (currentStatus === 'On' && targetState === 'on') || (currentStatus === 'Off' && targetState === 'off');					
 					return statusMatches;
 				},
