@@ -5,6 +5,7 @@ module.exports = {
 	initActions: function () {
 		var self = this;
 		let actions = {};
+		const maxSockets = 18;
 
 		actions.switchOn = {
 			name: 'Set Output Socket On',
@@ -14,7 +15,7 @@ module.exports = {
 					label: 'Socket',
 					id: 'socketOn',
 					min: 1,
-					max: 24,
+					max: maxSockets,
 					default: 1,
 					required: true,
 				},
@@ -36,7 +37,7 @@ module.exports = {
 					label: 'Socket',
 					id: 'socketOff',
 					min: 1,
-					max: 24,
+					max: maxSockets,
 					default: 1,
 					required: true,
 				},
@@ -55,7 +56,7 @@ module.exports = {
 					label: 'Socket',
 					id: 'socketToggle',
 					min: 1,
-					max: 24,
+					max: maxSockets,
 					default: 1,
 					required: true,
 				},
