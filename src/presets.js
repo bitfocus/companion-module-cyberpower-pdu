@@ -4,13 +4,14 @@ module.exports = {
 	initPresets: function () {
 		let self = this;
 		let presets = [];
+		const maxSockets = 18;
 
 		const foregroundColor = combineRgb(255, 255, 255) // White
 		const foregroundColorBlack = combineRgb(0, 0, 0) // Black
 		const backgroundColorRed = combineRgb(255, 0, 0) // Red
 		const backgroundColorWhite = combineRgb(255, 255, 255) // White
 
-		for (let i = 1; i < 9; i++) {
+		for (let i = 1; i <= maxSockets; i++) {
 			presets.push({
 				type: 'button',
 				category: 'Socket On',
@@ -39,7 +40,7 @@ module.exports = {
 			})
 		}
 	
-		for (let i = 1; i < 9; i++) {
+		for (let i = 1; i <= maxSockets; i++) {
 			presets.push({
 				type: 'button',
 				category: 'Socket Off',
@@ -57,7 +58,7 @@ module.exports = {
 							{
 								actionId: 'switchOff',
 								options: {
-									socketOn: String(i),
+									socketOff: String(i),
 								},
 							}
 						],
@@ -68,7 +69,7 @@ module.exports = {
 			})
 		}
 	
-		for (let i = 1; i < 9; i++) {
+		for (let i = 1; i <= maxSockets; i++) {
 			presets.push({
 				type: 'button',
 				category: 'Socket Latch On & Off',
