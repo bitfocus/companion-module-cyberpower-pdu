@@ -9,7 +9,17 @@ function ab2str(buf) {
 function tenthsToString(tenths) {
 	const amps = tenths / 10;
 	return amps.toFixed(1);
-    }
+}
+
+function getSocketCount(self) {
+	const parsed = parseInt(self.DATA.numberSockets, 10)
+
+	if (Number.isInteger(parsed) && parsed > 0) {
+		return Math.min(parsed, 18)
+	}
+
+	return 8
+}
 
 function snmpGetChunked(session, oids, chunkSize, callback) {
 	let results = []
@@ -41,87 +51,99 @@ module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
 		let pdu_info = []
-		const maxSockets = 18;
+		const maxSockets = 18
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
-		// firmware, number of sockets, model, serial number
-		let oids = [
-		'1.3.6.1.4.1.3808.1.1.3.1.3.0', //firmware
-		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
-		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
-		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
-		];
-		for (let i = 1; i <= maxSockets; i++) {
-			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`); // socket name
-		}
+		const baseOids = [
+			'1.3.6.1.4.1.3808.1.1.3.1.3.0', // firmware
+			'1.3.6.1.4.1.3808.1.1.3.1.8.0', // number of sockets
+			'1.3.6.1.4.1.3808.1.1.3.1.5.0', // model
+			'1.3.6.1.4.1.3808.1.1.3.1.6.0', // serial number
+		]
 
-		
-		snmpGetChunked(get_session, oids, 8, function (error, varbinds) {
-			try {
-				if (error) {
-					self.log('error', error.toString())
-					self.updateStatus(InstanceStatus.Error);
+		snmpGetChunked(get_session, baseOids, 8, function (error, varbinds) {
+			if (error) {
+				self.log('error', error.toString())
+				self.updateStatus(InstanceStatus.Error)
+				get_session.close()
+				return
+			}
+
+			for (let i = 0; i < varbinds.length; i++) {
+				if (snmp.isVarbindError(varbinds[i])) {
+					console.error(snmp.varbindError(varbinds[i]))
+					pdu_info.push('')
+				} else if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null) {
+					pdu_info.push(ab2str(varbinds[i].value))
 				} else {
-					for (let i = 0; i < varbinds.length; i++) {
-						// for version 1 we can assume all OIDs were successful
-						//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
-						// for version 2c we must check each OID for an error condition
-						if (snmp.isVarbindError (varbinds[i])) {
-							console.error (snmp.varbindError (varbinds[i]))
+					pdu_info.push(varbinds[i].value)
+				}
+			}
+
+			const socketCount = Math.min(parseInt(pdu_info[1], 10) || 8, maxSockets)
+			const nameOids = []
+			for (let i = 1; i <= socketCount; i++) {
+				nameOids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`)
+			}
+
+			snmpGetChunked(get_session, nameOids, 8, function (nameError, nameVarbinds) {
+				try {
+					if (nameError) {
+						self.log('error', nameError.toString())
+						self.updateStatus(InstanceStatus.Error)
+						return
+					}
+
+					for (let i = 0; i < nameVarbinds.length; i++) {
+						if (snmp.isVarbindError(nameVarbinds[i])) {
+							console.error(snmp.varbindError(nameVarbinds[i]))
 							pdu_info.push('')
+						} else if (typeof nameVarbinds[i].value === 'object' && nameVarbinds[i].value !== null) {
+							pdu_info.push(ab2str(nameVarbinds[i].value))
 						} else {
-							//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
-							if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
-								pdu_info.push(ab2str(varbinds[i].value))
-							} else {
-								// self.log('info',varbinds[i].value);
-								pdu_info.push(varbinds[i].value)
-							}
+							pdu_info.push(nameVarbinds[i].value)
 						}
 					}
+
+					const dataKeys = [
+						'firmware', 'numberSockets', 'model', 'serialNumber'
+					]
+					for (let i = 1; i <= maxSockets; i++) {
+						dataKeys.push(`s${i}Name`)
+					}
+
+					let dataChanged = false
+					for (let i = 0; i < dataKeys.length; i++) {
+						const key = dataKeys[i]
+						const value = i < 4 ? pdu_info[i] : (pdu_info[i] ?? '')
+
+						if (self.DATA[key] !== value) {
+							self.DATA[key] = value
+							dataChanged = true
+						}
+					}
+
+					if (dataChanged) {
+						self.checkVariables()
+					}
+				} finally {
+					get_session.close()
 				}
-			} finally {
-				get_session.close()
-			}
-			
-			const dataKeys = [
-				'firmware', 'numberSockets', 'model', 'serialNumber'
-			];
-			for (let i = 1; i <= maxSockets; i++) {
-				dataKeys.push(`s${i}Name`);
-			}
-
-			let dataChanged = false;
-
-			for (let i = 0; i < dataKeys.length; i++) {
-				const key = dataKeys[i];
-				if (self.DATA[key] !== pdu_info[i]) {
-					self.DATA[key] = pdu_info[i];
-					dataChanged = true;
-				}
-			}
-
-			if (dataChanged) {
-				//self.log('info', 'Update Core Triggered');
-				self.checkVariables() // only update core when there are changes.
-			}
+			})
 		})
-		return;
+		return
 	},
 	getStatus: function(host, communityRead) {
 		let self = this
-		let pdu_info = []
 		let pdu_status = []
 		let nToWords = ['unknown', 'On', 'Off']
-		const maxSockets = 18;
+		const socketCount = getSocketCount(self)
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
-		// firmware, number of sockets, model, serial number
-
-		let oids = [];
-		for (let i = 1; i <= maxSockets; i++) {
+		let oids = []
+		for (let i = 1; i <= socketCount; i++) {
 			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.${i}`); // socket state (1) = on, (2) = off
 		}
 		oids.push(
@@ -161,7 +183,7 @@ module.exports = {
 			
 			// update variables and trigger update to core if required.
 			const statusKeys = [];
-			for (let i = 1; i <= maxSockets; i++) {
+			for (let i = 1; i <= 18; i++) {
 				statusKeys.push(`s${i}Status`);
 			}
 
@@ -173,7 +195,7 @@ module.exports = {
 
 			for (let i = 0; i < statusKeys.length; i++) {
 				const key = statusKeys[i];
-				const newValue = nToWords[pdu_status[i]] || 'unknown';
+				const newValue = i < socketCount ? (nToWords[pdu_status[i]] || 'unknown') : '';
 
 				if (self.DATA[key] !== newValue) {
 					self.DATA[key] = newValue;
@@ -183,7 +205,7 @@ module.exports = {
 
 			for (let i = 0; i < measurementKeys.length; i++){
 				const key = measurementKeys[i];
-				const rawValue = pdu_status[i + maxSockets];
+				const rawValue = pdu_status[i + socketCount];
 				const newValue = rawValue == null ? '' : tenthsToString(rawValue); //pdu_status starts at 0
 
 				if (self.DATA[key] !== newValue) {
@@ -192,8 +214,8 @@ module.exports = {
 				}
 			}
 
-			if (self.DATA.bankWatts !== pdu_status[maxSockets + 2]) {
-				self.DATA.bankWatts = pdu_status[maxSockets + 2];
+			if (self.DATA.bankWatts !== pdu_status[socketCount + 2]) {
+				self.DATA.bankWatts = pdu_status[socketCount + 2];
 				dataChanged = true;
 			}
 
@@ -204,7 +226,7 @@ module.exports = {
 			}
 				
 		})
-		return;
+		return
 	},
 	sendCommand: function(control, outputValue, cmdValue) {
 		let wordToN = ['unknown', 'Off', 'On'] //Note reversed values as this is used to toggle only
