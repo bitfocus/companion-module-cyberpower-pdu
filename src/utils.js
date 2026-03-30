@@ -47,28 +47,88 @@ function snmpGetChunked(session, oids, chunkSize, callback) {
 	next()
 }
 
+function snmpGetChunked(session, oids, chunkSize, callback) {
+	let results = []
+	let index = 0
+
+	function next() {
+		if (index >= oids.length) {
+			callback(null, results)
+			return
+		}
+
+		const chunk = oids.slice(index, index + chunkSize)
+		session.get(chunk, function (error, varbinds) {
+			if (error) {
+				callback(error, results)
+				return
+			}
+
+			results = results.concat(varbinds)
+			index += chunkSize
+			next()
+		})
+	}
+
+	next()
+}
+
 module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
 		let pdu_info = []
-		const maxSockets = 18
+		const maxSockets = 18;
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
-		const baseOids = [
-			'1.3.6.1.4.1.3808.1.1.3.1.3.0', // firmware
-			'1.3.6.1.4.1.3808.1.1.3.1.8.0', // number of sockets
-			'1.3.6.1.4.1.3808.1.1.3.1.5.0', // model
-			'1.3.6.1.4.1.3808.1.1.3.1.6.0', // serial number
-		]
+		// firmware, number of sockets, model, serial number
+		let oids = [
+		'1.3.6.1.4.1.3808.1.1.3.1.3.0', //firmware
+		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
+		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
+		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
+		];
+		for (let i = 1; i <= maxSockets; i++) {
+			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`); // socket name
+		}
 
-		snmpGetChunked(get_session, baseOids, 8, function (error, varbinds) {
-			if (error) {
-				self.log('error', error.toString())
-				self.updateStatus(InstanceStatus.Error)
+		
+		snmpGetChunked(get_session, oids, 8, function (error, varbinds) {
+			try {
+				if (error) {
+					self.log('error', error.toString())
+					self.updateStatus(InstanceStatus.Error);
+				} else {
+					for (let i = 0; i < varbinds.length; i++) {
+						// for version 1 we can assume all OIDs were successful
+						//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
+						// for version 2c we must check each OID for an error condition
+						if (snmp.isVarbindError (varbinds[i])) {
+							console.error (snmp.varbindError (varbinds[i]))
+							pdu_info.push('')
+						} else {
+							//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
+							if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
+								pdu_info.push(ab2str(varbinds[i].value))
+							} else {
+								// self.log('info',varbinds[i].value);
+								pdu_info.push(varbinds[i].value)
+							}
+						}
+					}
+				}
+			} finally {
 				get_session.close()
-				return
 			}
+			
+			const dataKeys = [
+				'firmware', 'numberSockets', 'model', 'serialNumber'
+			];
+			for (let i = 1; i <= maxSockets; i++) {
+				dataKeys.push(`s${i}Name`);
+			}
+
+			let dataChanged = false;
 
 			for (let i = 0; i < varbinds.length; i++) {
 				if (snmp.isVarbindError(varbinds[i])) {
