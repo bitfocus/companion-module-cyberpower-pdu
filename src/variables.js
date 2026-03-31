@@ -26,7 +26,7 @@ module.exports = {
 		//Check info (names, model, etc) once every 5 seconds
 		try {
 			setInterval(function() {
-				self.getInfo(self.config.host, self.config.communityWrite);
+				self.getInfo(self.config.host, self.config.communityRead);
 				self.log('info', 'Name Check');
 			},5000);
 		}
@@ -36,7 +36,7 @@ module.exports = {
 		//Check status (bank values, socket status) once every second
 		try {
 			setInterval(function() {
-				self.getStatus(self.config.host, self.config.communityWrite);
+				self.getStatus(self.config.host, self.config.communityRead);
 				self.log('info', 'Status Check');
 			},1000);
 		}
@@ -45,8 +45,8 @@ module.exports = {
 		}
 		
 		
-		self.getStatus(self.config.host, self.config.communityWrite); // update socket values on start.
-		self.getInfo(self.config.host, self.config.communityWrite); // update info on intial start.
+		self.getInfo(self.config.host, self.config.communityRead); // update info on initial start.
+		self.getStatus(self.config.host, self.config.communityRead); // update socket values on start.
 	},
 
 	// #########################
