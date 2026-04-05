@@ -105,7 +105,6 @@ function parseSnmpValue(value) {
 
 	return value
 }
-
 module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
