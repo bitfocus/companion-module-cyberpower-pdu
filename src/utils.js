@@ -12,7 +12,7 @@ function tenthsToString(tenths) {
 }
 
 function getSocketCount(self) {
-	const parsed = parseInt(self.DATA.numberSockets, 10)
+	const parsed = parseInt(self.DATA.availableSockets || self.DATA.numberSockets, 10)
 
 	if (Number.isInteger(parsed) && parsed > 0) {
 		return Math.min(parsed, 18)
@@ -21,30 +21,13 @@ function getSocketCount(self) {
 	return 8
 }
 
-function snmpGetChunked(session, oids, chunkSize, callback) {
-	let results = []
-	let index = 0
-
-	function next() {
-		if (index >= oids.length) {
-			callback(null, results)
-			return
-		}
-
-		const chunk = oids.slice(index, index + chunkSize)
-		session.get(chunk, function (error, varbinds) {
-			if (error) {
-				callback(error, results)
-				return
-			}
-
-			results = results.concat(varbinds)
-			index += chunkSize
-			next()
-		})
+function isMissingOidError(error) {
+	if (!error) {
+		return false
 	}
 
-	next()
+	const message = String(error)
+	return message.includes('NoSuchName') || message.includes('NoSuchInstance')
 }
 
 function snmpGetChunked(session, oids, chunkSize, callback) {
@@ -73,81 +56,90 @@ function snmpGetChunked(session, oids, chunkSize, callback) {
 	next()
 }
 
+function snmpWalkSocketValues(session, oidPrefix, maxSockets, callback) {
+	let results = []
+	let index = 1
+
+	function next() {
+		if (index > maxSockets) {
+			callback(null, results)
+			return
+		}
+
+		session.get([`${oidPrefix}.${index}`], function (error, varbinds) {
+			if (isMissingOidError(error)) {
+				callback(null, results)
+				return
+			}
+
+			if (error) {
+				callback(error, results)
+				return
+			}
+
+			const varbind = varbinds[0]
+			if (snmp.isVarbindError(varbind)) {
+				const varbindError = snmp.varbindError(varbind)
+				if (isMissingOidError(varbindError)) {
+					callback(null, results)
+					return
+				}
+
+				callback(new Error(varbindError), results)
+				return
+			}
+
+			results.push(varbind.value)
+			index += 1
+			next()
+		})
+	}
+
+	next()
+}
+
+function parseSnmpValue(value) {
+	if (typeof value === 'object' && value !== null) {
+		return ab2str(value)
+	}
+
+	return value
+}
 module.exports = {
 	getInfo: function(host, communityRead) {
 		let self = this
 		let pdu_info = []
-		const maxSockets = 18;
+		const maxSockets = 18
 		
 		let get_session = snmp.createSession (host, communityRead)
 		
-		// firmware, number of sockets, model, serial number
-		let oids = [
-		'1.3.6.1.4.1.3808.1.1.3.1.3.0', //firmware
-		'1.3.6.1.4.1.3808.1.1.3.1.8.0', //number of sockets
-		'1.3.6.1.4.1.3808.1.1.3.1.5.0', //model
-		'1.3.6.1.4.1.3808.1.1.3.1.6.0', //serial number
-		];
-		for (let i = 1; i <= maxSockets; i++) {
-			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`); // socket name
-		}
+		const baseOids = [
+			'1.3.6.1.4.1.3808.1.1.3.1.3.0', // firmware
+			'1.3.6.1.4.1.3808.1.1.3.1.8.0', // number of sockets
+			'1.3.6.1.4.1.3808.1.1.3.1.5.0', // model
+			'1.3.6.1.4.1.3808.1.1.3.1.6.0', // serial number
+		]
 
-		
-		snmpGetChunked(get_session, oids, 8, function (error, varbinds) {
-			try {
-				if (error) {
-					self.log('error', error.toString())
-					self.updateStatus(InstanceStatus.Error);
-				} else {
-					for (let i = 0; i < varbinds.length; i++) {
-						// for version 1 we can assume all OIDs were successful
-						//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
-						// for version 2c we must check each OID for an error condition
-						if (snmp.isVarbindError (varbinds[i])) {
-							console.error (snmp.varbindError (varbinds[i]))
-							pdu_info.push('')
-						} else {
-							//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
-							if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
-								pdu_info.push(ab2str(varbinds[i].value))
-							} else {
-								// self.log('info',varbinds[i].value);
-								pdu_info.push(varbinds[i].value)
-							}
-						}
-					}
-				}
-			} finally {
+		snmpGetChunked(get_session, baseOids, 8, function (error, varbinds) {
+			if (error) {
+				self.log('error', error.toString())
+				self.updateStatus(InstanceStatus.Error)
 				get_session.close()
+				return
 			}
-			
-			const dataKeys = [
-				'firmware', 'numberSockets', 'model', 'serialNumber'
-			];
-			for (let i = 1; i <= maxSockets; i++) {
-				dataKeys.push(`s${i}Name`);
-			}
-
-			let dataChanged = false;
 
 			for (let i = 0; i < varbinds.length; i++) {
 				if (snmp.isVarbindError(varbinds[i])) {
 					console.error(snmp.varbindError(varbinds[i]))
 					pdu_info.push('')
-				} else if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null) {
-					pdu_info.push(ab2str(varbinds[i].value))
 				} else {
-					pdu_info.push(varbinds[i].value)
+					pdu_info.push(parseSnmpValue(varbinds[i].value))
 				}
 			}
 
 			const socketCount = Math.min(parseInt(pdu_info[1], 10) || 8, maxSockets)
-			const nameOids = []
-			for (let i = 1; i <= socketCount; i++) {
-				nameOids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2.${i}`)
-			}
 
-			snmpGetChunked(get_session, nameOids, 8, function (nameError, nameVarbinds) {
+			snmpWalkSocketValues(get_session, '1.3.6.1.4.1.3808.1.1.3.3.5.1.1.2', socketCount, function (nameError, nameValues) {
 				try {
 					if (nameError) {
 						self.log('error', nameError.toString())
@@ -155,16 +147,11 @@ module.exports = {
 						return
 					}
 
-					for (let i = 0; i < nameVarbinds.length; i++) {
-						if (snmp.isVarbindError(nameVarbinds[i])) {
-							console.error(snmp.varbindError(nameVarbinds[i]))
-							pdu_info.push('')
-						} else if (typeof nameVarbinds[i].value === 'object' && nameVarbinds[i].value !== null) {
-							pdu_info.push(ab2str(nameVarbinds[i].value))
-						} else {
-							pdu_info.push(nameVarbinds[i].value)
-						}
+					for (let i = 0; i < nameValues.length; i++) {
+						pdu_info.push(parseSnmpValue(nameValues[i]))
 					}
+
+					self.DATA.availableSockets = String(nameValues.length || socketCount)
 
 					const dataKeys = [
 						'firmware', 'numberSockets', 'model', 'serialNumber'
@@ -201,90 +188,93 @@ module.exports = {
 		const socketCount = getSocketCount(self)
 		
 		let get_session = snmp.createSession (host, communityRead)
-		
-		let oids = []
-		for (let i = 1; i <= socketCount; i++) {
-			oids.push(`1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4.${i}`); // socket state (1) = on, (2) = off
-		}
-		oids.push(
-			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.2.1', // Bank amps in 0.1
-			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.6.1', // Bank volts in 0.1
-			'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.7.1', // Bank Watts
-		);
 
-		
-		snmpGetChunked(get_session, oids, 8, function (error, varbinds) {
+		snmpWalkSocketValues(get_session, '1.3.6.1.4.1.3808.1.1.3.3.5.1.1.4', socketCount, function (error, statusValues) {
 			try {
 				if (error) {
 					self.log('error', error.toString())
-					self.updateStatus(InstanceStatus.Error);
-				} else {
-					for (let i = 0; i < varbinds.length; i++) {
-						// for version 1 we can assume all OIDs were successful
-						//self.log ('info', varbinds[i].oid + '|' + varbinds[i].value)
-						// for version 2c we must check each OID for an error condition
-						if (snmp.isVarbindError (varbinds[i])) {
-							console.error (snmp.varbindError (varbinds[i]))
-							pdu_status.push(null)
-						} else {
-							//self.log ('info' ,varbinds[i].oid + '|' + varbinds[i].value);
-							if (typeof varbinds[i].value === 'object' && varbinds[i].value !== null ) {
-								pdu_status.push(ab2str(varbinds[i].value))
+					self.updateStatus(InstanceStatus.Error)
+					return
+				}
+
+				self.DATA.availableSockets = String(statusValues.length || socketCount)
+				for (let i = 0; i < statusValues.length; i++) {
+					pdu_status.push(parseSnmpValue(statusValues[i]))
+				}
+
+				const measurementOids = [
+					'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.2.1', // Bank amps in 0.1
+					'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.6.1', // Bank volts in 0.1
+					'1.3.6.1.4.1.3808.1.1.3.2.3.1.1.7.1', // Bank Watts
+				]
+
+				snmpGetChunked(get_session, measurementOids, 3, function (measurementError, measurementVarbinds) {
+					try {
+						if (measurementError) {
+							self.log('error', measurementError.toString())
+							self.updateStatus(InstanceStatus.Error)
+							return
+						}
+
+						for (let i = 0; i < measurementVarbinds.length; i++) {
+							if (snmp.isVarbindError(measurementVarbinds[i])) {
+								console.error(snmp.varbindError(measurementVarbinds[i]))
+								pdu_status.push(null)
 							} else {
-								// self.log('info',varbinds[i].value);
-								pdu_status.push(varbinds[i].value)
+								pdu_status.push(parseSnmpValue(measurementVarbinds[i].value))
 							}
 						}
+
+						const actualSocketCount = statusValues.length || socketCount
+						const statusKeys = []
+						for (let i = 1; i <= 18; i++) {
+							statusKeys.push(`s${i}Status`)
+						}
+
+						const measurementKeys = [
+							'bankAmps', 'bankVolts'
+						]
+
+						let dataChanged = false
+
+						for (let i = 0; i < statusKeys.length; i++) {
+							const key = statusKeys[i]
+							const newValue = i < actualSocketCount ? (nToWords[pdu_status[i]] || 'unknown') : ''
+
+							if (self.DATA[key] !== newValue) {
+								self.DATA[key] = newValue
+								dataChanged = true
+							}
+						}
+
+						for (let i = 0; i < measurementKeys.length; i++) {
+							const key = measurementKeys[i]
+							const rawValue = pdu_status[i + actualSocketCount]
+							const newValue = rawValue == null ? '' : tenthsToString(rawValue)
+
+							if (self.DATA[key] !== newValue) {
+								self.DATA[key] = newValue
+								dataChanged = true
+							}
+						}
+
+						if (self.DATA.bankWatts !== pdu_status[actualSocketCount + 2]) {
+							self.DATA.bankWatts = pdu_status[actualSocketCount + 2]
+							dataChanged = true
+						}
+
+						if (dataChanged) {
+							self.checkVariables()
+							self.checkFeedbacks('SocketState')
+						}
+					} finally {
+						get_session.close()
 					}
-				}
-			} finally {
+				})
+			} catch (error) {
 				get_session.close()
+				throw error
 			}
-			
-			// update variables and trigger update to core if required.
-			const statusKeys = [];
-			for (let i = 1; i <= 18; i++) {
-				statusKeys.push(`s${i}Status`);
-			}
-
-			const measurementKeys = [
-				'bankAmps', 'bankVolts'
-			]
-
-			let dataChanged = false;
-
-			for (let i = 0; i < statusKeys.length; i++) {
-				const key = statusKeys[i];
-				const newValue = i < socketCount ? (nToWords[pdu_status[i]] || 'unknown') : '';
-
-				if (self.DATA[key] !== newValue) {
-					self.DATA[key] = newValue;
-					dataChanged = true;
-				}
-			}
-
-			for (let i = 0; i < measurementKeys.length; i++){
-				const key = measurementKeys[i];
-				const rawValue = pdu_status[i + socketCount];
-				const newValue = rawValue == null ? '' : tenthsToString(rawValue); //pdu_status starts at 0
-
-				if (self.DATA[key] !== newValue) {
-					self.DATA[key] = newValue;
-					dataChanged = true;
-				}
-			}
-
-			if (self.DATA.bankWatts !== pdu_status[socketCount + 2]) {
-				self.DATA.bankWatts = pdu_status[socketCount + 2];
-				dataChanged = true;
-			}
-
-
-			if (dataChanged) {
-				self.checkVariables()
-				self.checkFeedbacks('SocketState');
-			}
-				
 		})
 		return
 	},
@@ -328,7 +318,7 @@ module.exports = {
 				statusKeys.push(`s${i}Status`);
 			}
 			
-			setValue = wordToN.indexOf(self.DATA[statusKeys[outputValue-1]]);
+			let setValue = wordToN.indexOf(self.DATA[statusKeys[outputValue-1]]);
 			
 			varbinds = [
 				{
@@ -366,13 +356,13 @@ module.exports = {
 		
 		setTimeout(function() {
 			//self.log('info','Start Checks');
-			self.getStatus(self.config.host, self.config.communityWrite); //check status
+			self.getStatus(self.config.host, self.config.communityRead); //check status
 			//self.log('info','Checks Complete');
 		}, 500);		
 		
 		setTimeout(function() {
 			//self.log('info','Start Checks');
-			self.getStatus(self.config.host, self.config.communityWrite); //check status
+			self.getStatus(self.config.host, self.config.communityRead); //check status
 			//self.log('info','Checks Complete');
 		}, 1500);
 		
